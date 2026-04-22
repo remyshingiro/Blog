@@ -3,8 +3,15 @@ import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import PostDetail from "./pages/PostDetail";
 import CreatePost from "./pages/CreatePost";
+import { useState } from "react";
+
 
 function App() {
+
+  
+  const [posts, setPosts] = useState([]);
+
+
   return (
     <BrowserRouter>
       {/* Navbar stays on all pages */}
