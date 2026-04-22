@@ -1,16 +1,29 @@
 import { useState } from "react";
+import {v4 as uuidv4}  from "uuid"
 
 
-
-function CreatePost() {
+function CreatePost({addPost}) {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+
+  const handleSubmit = (e) =>{
+    e.preventDefault();
+    const post = {
+      id: uuidv4(),
+      title,
+      content
+    };
+    addPost(post);
+    setTitle('');
+    setContent('');
+  }
   return (
     <div className="max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">Create New Post</h2>
 
-      <form className="space-y-4">
+      <form className="space-y-4"
+      onSubmit={handleSubmit}>
         <input
           type="text"
           //handling post title
@@ -30,6 +43,9 @@ function CreatePost() {
         ></textarea>
 
         <button
+          // onClick={()=>{
+            
+          // }}
           type="submit"
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
         >
