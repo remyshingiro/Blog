@@ -14,14 +14,16 @@ function App() {
    setPosts((prevPosts)=> [...prevPosts, post]);
   }
   
-  const [posts, setPosts] = useState([
-    {
-      id: uuidv4(),
-      title: "title",
-      content: "content"
+  const [posts, setPosts] = useState(
+   ()=>{
+    let savedPosts = localStorage.getItem('all_posts')
+     
+    return savedPosts ? JSON.parse(savedPosts) : []
+   }
+  )
+   
 
-    }
-  ]);
+
 
 
   return (
