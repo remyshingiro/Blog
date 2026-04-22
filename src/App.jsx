@@ -8,7 +8,11 @@ import {v4 as uuidv4} from "uuid";
 
 
 function App() {
-
+  //fn to add new post to the posts array and updates it
+  function addPost(post){
+    // we used previous post to keep up with the latest state
+   setPosts((prevPosts)=> [...prevPosts, post]);
+  }
   
   const [posts, setPosts] = useState([
     {
