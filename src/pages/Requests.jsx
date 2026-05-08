@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { mockRequests } from '../data/mockData';
-import { CheckCircle, XCircle, Printer, Clock, Plus } from 'lucide-react';
+import { CheckCircle, XCircle, Printer, Clock, Plus, FileText, Filter } from 'lucide-react';
 
 const Requests = () => {
   const { user } = useAuth();
   const [requests, setRequests] = useState(mockRequests);
+  const [activeTab, setActiveTab] = useState('ALL'); // 'ALL', 'PENDING', 'APPROVED', 'REJECTED'
+  const [printData, setPrintData] = useState(null); // Holds the specific request being printed
 
   // Handlers for Managers
   const handleApprove = (id) => {
@@ -16,10 +18,24 @@ const Requests = () => {
     setRequests(requests.map(req => req.id === id ? { ...req, status: 'REJECTED' } : req));
   };
 
-  // Filter requests based on role. Mechanics only see their own.
-  const displayRequests = user.role === 'MANAGER' 
+  // Trigger the print dialogue for a specific request
+  const handlePrint = (request) => {
+    setPrintData(request);
+    // Slight delay ensures the DOM updates with the printData before the browser print window opens
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  // Step 1: Filter by Role
+  const roleFilteredRequests = user.role === 'MANAGER' 
     ? requests 
     : requests.filter(req => req.mechanicName === user.name);
+
+  // Step 2: Filter by Tab
+  const displayRequests = roleFilteredRequests.filter(req => 
+    activeTab === 'ALL' ? true : req.status === activeTab
+  );
 
   // Helper for Status Badges
   const StatusBadge = ({ status }) => {
@@ -42,13 +58,32 @@ const Requests = () => {
           </p>
         </div>
         
-        {/* Only Mechanics can request new parts here */}
         {user.role === 'MECHANIC' && (
           <button className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition flex items-center gap-2 shadow-sm">
             <Plus size={20} />
             <span>New Request</span>
           </button>
         )}
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100 flex gap-2 overflow-x-auto print:hidden">
+        {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+              activeTab === tab 
+                ? 'bg-slate-100 text-slate-800 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {tab === 'ALL' ? 'All Requests' : tab.charAt(0) + tab.slice(1).toLowerCase()}
+            <span className="ml-2 px-2 py-0.5 rounded-full bg-white border border-slate-200 text-xs text-slate-500">
+              {roleFilteredRequests.filter(r => tab === 'ALL' ? true : r.status === tab).length}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Main Table Container */}
@@ -67,56 +102,111 @@ const Requests = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {displayRequests.map((req) => (
-                <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-mono text-slate-500">{req.id}</td>
-                  {user.role === 'MANAGER' && <td className="px-6 py-4 font-medium text-slate-800">{req.mechanicName}</td>}
-                  <td className="px-6 py-4 font-medium text-slate-800">{req.itemName}</td>
-                  <td className="px-6 py-4 text-center font-bold">{req.quantity}</td>
-                  <td className="px-6 py-4 text-slate-600">{req.jobReference}</td>
-                  <td className="px-6 py-4"><StatusBadge status={req.status} /></td>
-                  <td className="px-6 py-4 text-right">
-                    
-                    {/* MANAGER ACTIONS */}
-                    {user.role === 'MANAGER' && req.status === 'PENDING' && (
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => handleApprove(req.id)} className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-medium transition">Approve</button>
-                        <button onClick={() => handleReject(req.id)} className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg font-medium transition">Reject</button>
-                      </div>
-                    )}
+              {displayRequests.length > 0 ? (
+                displayRequests.map((req) => (
+                  <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-slate-500">{req.id}</td>
+                    {user.role === 'MANAGER' && <td className="px-6 py-4 font-medium text-slate-800">{req.mechanicName}</td>}
+                    <td className="px-6 py-4 font-medium text-slate-800">{req.itemName}</td>
+                    <td className="px-6 py-4 text-center font-bold">{req.quantity}</td>
+                    <td className="px-6 py-4 text-slate-600">{req.jobReference}</td>
+                    <td className="px-6 py-4"><StatusBadge status={req.status} /></td>
+                    <td className="px-6 py-4 text-right">
+                      
+                      {/* MANAGER ACTIONS */}
+                      {user.role === 'MANAGER' && req.status === 'PENDING' && (
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => handleApprove(req.id)} className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-medium transition">Approve</button>
+                          <button onClick={() => handleReject(req.id)} className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg font-medium transition">Reject</button>
+                        </div>
+                      )}
 
-                    {/* MECHANIC ACTIONS */}
-                    {user.role === 'MECHANIC' && req.status === 'APPROVED' && (
-                      <button 
-                        onClick={() => window.print()} 
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg font-medium transition ml-auto"
-                      >
-                        <Printer size={16} /> Print Slip
-                      </button>
-                    )}
+                      {/* MECHANIC ACTIONS */}
+                      {user.role === 'MECHANIC' && req.status === 'APPROVED' && (
+                        <button 
+                          onClick={() => handlePrint(req)} 
+                          className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg font-medium transition ml-auto"
+                        >
+                          <Printer size={16} /> Print Slip
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                /* EMPTY STATE */
+                <tr>
+                  <td colSpan={user.role === 'MANAGER' ? "7" : "6"} className="px-6 py-16 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="bg-slate-50 p-4 rounded-full mb-3">
+                        <FileText className="h-8 w-8 text-slate-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-slate-800">No requests found</h3>
+                      <p className="text-sm text-slate-500 mt-1">
+                        There are no {activeTab !== 'ALL' ? activeTab.toLowerCase() : ''} requests to display at this time.
+                      </p>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* PRINT-ONLY TEMPLATE: This is invisible on screen, but shows up when printing */}
-      <div className="hidden print:block p-8 border-2 border-dashed border-slate-300">
-        <h1 className="text-3xl font-bold text-center mb-8">Kigali Auto Masters - Part Release Form</h1>
-        <p className="text-center text-slate-500 mb-12">Authorized by Management. Hand this to the stock clerk.</p>
+      {/* PRINT-ONLY TEMPLATE: Completely rebuilt to act as a real receipt */}
+      <div className="hidden print:block p-8 border-2 border-slate-800 max-w-2xl mx-auto">
+        <div className="border-b-2 border-slate-800 pb-6 mb-6">
+          <h1 className="text-3xl font-bold text-center uppercase tracking-wider">Kigali Auto Masters</h1>
+          <p className="text-center text-slate-600 font-medium mt-1">Official Part Release Authorization</p>
+        </div>
         
-        <div className="space-y-6 text-lg">
-          <div className="flex justify-between border-b pb-2"><span className="font-semibold">Mechanic Name:</span> <span>{user.name}</span></div>
-          <div className="flex justify-between border-b pb-2"><span className="font-semibold">Date & Time:</span> <span>{new Date().toLocaleString()}</span></div>
-          <div className="flex justify-between border-b pb-2"><span className="font-semibold">Status:</span> <span className="text-green-600 font-bold">APPROVED</span></div>
-        </div>
+        {printData && (
+          <>
+            <div className="grid grid-cols-2 gap-8 text-lg mb-8">
+              <div>
+                <p className="text-sm text-slate-500 uppercase font-bold">Request ID</p>
+                <p className="font-mono font-bold">{printData.id}</p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500 uppercase font-bold">Authorized Date</p>
+                <p className="font-bold">{new Date().toLocaleDateString()} - {new Date().toLocaleTimeString()}</p>
+              </div>
+            </div>
 
-        <div className="mt-16 text-center text-sm text-slate-400">
-          <p>Scan barcode at stock room counter.</p>
-          <div className="h-12 w-48 bg-slate-200 mx-auto mt-4 rounded"></div> {/* Fake Barcode */}
-        </div>
+            <div className="bg-slate-100 p-6 rounded-lg mb-8 border border-slate-200">
+              <div className="space-y-4">
+                <div className="flex justify-between border-b border-slate-200 pb-2">
+                  <span className="font-semibold text-slate-600">Mechanic:</span> 
+                  <span className="font-bold">{printData.mechanicName}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-2">
+                  <span className="font-semibold text-slate-600">Job Reference:</span> 
+                  <span className="font-bold">{printData.jobReference}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-2">
+                  <span className="font-semibold text-slate-600">Part Approved:</span> 
+                  <span className="font-bold">{printData.itemName}</span>
+                </div>
+                <div className="flex justify-between pt-2">
+                  <span className="font-semibold text-slate-600">Quantity to Release:</span> 
+                  <span className="font-bold text-xl">{printData.quantity}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-between mt-16 pt-8 border-t border-slate-300">
+              <div className="text-center w-48">
+                <div className="border-b border-slate-800 h-8 mb-2"></div>
+                <p className="text-xs text-slate-500 uppercase">Manager Signature</p>
+              </div>
+              <div className="text-center w-48">
+                <div className="border-b border-slate-800 h-8 mb-2"></div>
+                <p className="text-xs text-slate-500 uppercase">Stock Clerk Signature</p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
