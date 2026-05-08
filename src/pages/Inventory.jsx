@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Search, Plus, Edit2, ArrowDownRight, Filter } from 'lucide-react';
 import { mockInventory } from '../data/mockData';
 import AddItemModal from '../components/AddItemModal';
-import CheckoutModal from '../components/CheckoutModal';
+import CheckoutModal from '../components/RequestModal';
 
 const Inventory = () => {
   const [inventoryList, setInventoryList] = useState(mockInventory);
