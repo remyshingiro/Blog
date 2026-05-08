@@ -1,19 +1,19 @@
 import { useState } from 'react';
-import { Search, Plus, Edit2, ArrowDownRight, Filter } from 'lucide-react';
+import { Search, Plus, Edit2, ClipboardList, Filter } from 'lucide-react';
 import { mockInventory } from '../data/mockData';
 import AddItemModal from '../components/AddItemModal';
-import CheckoutModal from '../components/RequestModal';
+import RequestModal from '../components/RequestModal'; // Updated Import
+import { useAuth } from '../context/AuthContext'; // Pulling in user roles
 
 const Inventory = () => {
+  const { user } = useAuth(); // Get the current user role
   const [inventoryList, setInventoryList] = useState(mockInventory);
   
   // State for Modal Controls
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  
-  // NEW: State to hold the specific item a user wants to check out
-  const [checkoutItem, setCheckoutItem] = useState(null);
+  const [requestItem, setRequestItem] = useState(null); // Renamed state
 
   const categories = ["All", ...new Set(inventoryList.map(item => item.category))];
 
@@ -28,21 +28,13 @@ const Inventory = () => {
     setInventoryList([newItem, ...inventoryList]);
   };
 
-  // NEW: Handler for checking out items
-  const handleCheckout = (itemId, checkoutData) => {
-    setInventoryList(prevList => 
-      prevList.map(item => {
-        if (item.id === itemId) {
-          // Deduct the checked-out quantity from the current stock
-          return { ...item, stock: item.stock - checkoutData.quantity };
-        }
-        return item;
-      })
-    );
+  // UPDATED: We no longer deduct stock here. We log a request!
+  const handleRequestPart = (itemId, requestData) => {
+    // Alert the user that the request was sent to the Manager
+    alert(`Success! Requested ${requestData.quantity} part(s). Waiting for Manager approval.`);
     
-    // NOTE: Later, we will also send this `checkoutData` to Firebase 
-    // to create a permanent record in the Transactions collection!
-    console.log("Transaction Recorded:", checkoutData);
+    // Once Firebase is connected, this will push a new document to the "Requests" collection
+    console.log("Sent to Approvals Queue:", requestData);
   };
 
   return (
@@ -52,13 +44,17 @@ const Inventory = () => {
           <h2 className="text-2xl font-bold text-slate-800">Inventory Master List</h2>
           <p className="text-slate-500 text-sm mt-1">Manage, search, and update your garage parts.</p>
         </div>
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition flex items-center gap-2 shadow-sm"
-        >
-          <Plus size={20} />
-          <span>Add New Part</span>
-        </button>
+        
+        {/* RBAC: Only Managers can add new parts */}
+        {user.role === 'MANAGER' && (
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition flex items-center gap-2 shadow-sm"
+          >
+            <Plus size={20} />
+            <span>Add New Part</span>
+          </button>
+        )}
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4">
@@ -131,17 +127,23 @@ const Inventory = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="text-slate-400 hover:text-blue-600 transition-colors" title="Edit Part">
-                          <Edit2 size={18} />
-                        </button>
-                        {/* NEW: On click, set the item to open the checkout modal */}
+                        
+                        {/* RBAC: Only Managers can edit parts */}
+                        {user.role === 'MANAGER' && (
+                          <button className="text-slate-400 hover:text-blue-600 transition-colors" title="Edit Part">
+                            <Edit2 size={18} />
+                          </button>
+                        )}
+
+                        {/* Everyone can Request parts */}
                         <button 
-                          onClick={() => setCheckoutItem(item)}
-                          className="text-slate-400 hover:text-orange-600 transition-colors" 
-                          title="Check Out Part"
+                          onClick={() => setRequestItem(item)}
+                          className="text-slate-400 hover:text-blue-600 transition-colors" 
+                          title="Request Part"
                         >
-                          <ArrowDownRight size={18} />
+                          <ClipboardList size={18} />
                         </button>
+
                       </div>
                     </td>
                   </tr>
@@ -163,12 +165,12 @@ const Inventory = () => {
 
       <AddItemModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAddNewItem} />
       
-      {/* NEW: Render the Checkout Modal */}
-      <CheckoutModal 
-        isOpen={!!checkoutItem} 
-        item={checkoutItem} 
-        onClose={() => setCheckoutItem(null)} 
-        onCheckout={handleCheckout} 
+      {/* Updated Request Modal */}
+      <RequestModal 
+        isOpen={!!requestItem} 
+        item={requestItem} 
+        onClose={() => setRequestItem(null)} 
+        onRequest={handleRequestPart} 
       />
     </div>
   );
